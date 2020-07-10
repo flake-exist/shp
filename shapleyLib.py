@@ -4,6 +4,7 @@ import numpy as np
 from preprocessing import Preprocessing
 from preprocessing_config import *
 from properties import Properties
+from shapleyOrderLib import shapleyOrderLib
 
 
 class Shapley:
@@ -14,30 +15,10 @@ class Shapley:
         self.path_col          = path_col
         self.count_col         = count_col
         self.channel_delimiter = channel_delimiter   
-        self.channel_dict      = {} #dict for incoding channel names
- 
-    def ChainSplit(self,chain): return chain.split(self.channel_delimiter)
-    
-    def ChannelDict(self,channel_store):
-        '''
-        Create `self.channel_dict` indicating each unique channel its unique ID
-        Format -> {channel_1 : ID_1,
-                     ...
-                     ...
-                     ...
-                   channel_n : ID_n}
+        self.encryped_dict      = {} #dict for incoding channel names
 
-        INPUT: [1] `channel_store` list with unique channels
-        RETURN: [1] Unit
-        '''
-        channel_dict = {}
-
-        for ID,channel in enumerate(channel_store):
-            channel_dict[channel] = ID
-        
-        return channel_dict
     
-    def UniqueChannel(self):
+    def PathStats(self):
         '''
         Count number of unique channels in `paths`
         RETURN : [1] Unit
@@ -45,84 +26,42 @@ class Shapley:
         
         channel_store = []
         
-        size = self.data[self.path_col].shape[0]
+        path_count = self.data[self.path_col].shape[0] #number of paths
         
         for chain in self.data[self.path_col].values:
-            channel_store.extend(self.ChainSplit(chain)) #UDF method
-        channel_store = set(channel_store)
+            channel_store.extend(ChainSplit(chain,self.channel_delimiter)) #UDF method
+        channel_unique = set(channel_store) #unique channels
         
-        channel_unique = channel_store #all unique channels in `self.chain_list`
-        channel_size = len(channel_store) #size of unique channles
+        channel_unique_count = len(channel_unique) #number of unique channles
         
-        self.channel_dict = self.ChannelDict(channel_unique) #UDF method   
+        self.encryped_dict = EncodeDict(channel_unique)#UDF method   
         
-        return size,channel_size
+        return path_count,channel_unique_count
         
-    
-    def ChanneltoID(self,channel_seq): 
-        '''
-        Convert channel[s] into ID[s]
-        INPURT: [1] `channel_seq` list of channels
-        RETURN: [1] list of IDs (List[Int])
-            '''
-        
-        return [self.channel_dict[channel] for channel in channel_seq]
-        
-    def ZeroMatrix(self,row_num ,col_num): 
-        '''
-        Create zero matrix (size = (number of unique chains) x (number of unique channels))
-        '''
-        
-        return np.zeros((row_num,col_num))
-    
-    def DecodeDict(self,shapley_dict):
-        '''
-        Decode `shapley_dict`, where each unique channel is incoded into unique ID to "human" string format
-        Before: -> {0:val1,
-                    1:val2,
-                    ...,
-                    ...,
-                    ...,
-                    N: val_N} where N - number of unique channels and val_N its values (weights)
-
-        After-> {channel_name_1:val1,
-                 channel_name_2:val2,
-                    ...,
-                    ...,
-                    ...,
-                 channel_name_N: val_N} where N - number of unique channels and val_N its values (weights)
-
-        '''
-
-        decode_dict = {}
-
-        inv_channel_dict = {v: k for k, v in self.channel_dict.items()} # create invert `channel_dict
-
-        for key in shapley_dict.keys():
-            decode_dict[inv_channel_dict[key]] = shapley_dict[key]
-
-        return decode_dict
     
     def Vectorization(self):
         '''
-        Convert from `chain_list` format to Matrix format.Each ID in matrix is allocated to a channel (see `self.ChannelDict`)
+        Convert from `chain_list` format to Matrix format.
+        Each ID in matrix is allocated to a channel (see`self.EncodeDict`)
         RETURN: [1] Matrix[Int]. If i-th chain(row) has j-th channel(ID) -> M(i,j) = 1.In case channel(ID) meets multiple
         times in chain , M ignoring it anyway , despite of frequency channel(ID) in chain M(i,j)=1
         '''
         
-        size,channel_size = self.UniqueChannel()
+        path_count,channel_unique_count = self.PathStats()
         
-        M = self.ZeroMatrix(size,channel_size) #create empty Matrix
+        M = ZeroMatrix(path_count,channel_unique_count) #create empty Matrix (n x m)
         for index,chain in enumerate(self.data[self.path_col].values):
-            channel_seq = self.ChainSplit(chain)
-            target_ID = self.ChanneltoID(channel_seq)
-            M[index,target_ID] = 1
+            channel_seq = ChainSplit(chain,self.channel_delimiter)
+            channel_seq_id = ElemEncode(channel_seq,self.encryped_dict)
+            M[index,channel_seq_id] = 1
             
         return M
             
     def Calc(self,M):
         
-        shapley_dict = {}
+        shapley_DictEncode = {}
+        shapley_DictDecode = {}
+#         decode_dict={}
         
         for i in range(M.shape[1]): # iterate by channels
             mask = M[:,i]>0 # create mask
@@ -130,40 +69,48 @@ class Shapley:
             channel_cardinality = M_buffer.sum(axis=1) #channel cardinality           
             conversion = self.data[self.count_col].values[mask] # conversions allocated to i-th channel
             result = np.stack((conversion, channel_cardinality), axis=-1) #
-            shapley_dict[i] = np.array(result[:,0]/result[:,1]).sum() # 
-            decode_dict = self.DecodeDict(shapley_dict)
+            shapley_DictEncode[i] = np.array(result[:,0]/result[:,1]).sum() # 
+            
+        shapley_DictDecode = DecodeDict(shapley_DictEncode,self.encryped_dict)
         
-        return shapley_dict,decode_dict
+        return shapley_DictEncode,shapley_DictDecode
     
     
     def run(self):
         
         M = self.Vectorization()
-        shapley_dict,decode_dict = self.Calc(M)
+        shapley_DictEncode,shapley_DictDecode = self.Calc(M)
         
-        properties = Properties(self.data,shapley_dict)
+        properties = Properties(self.data,shapley_DictEncode)
         
         if properties.Efficiency():
             print("Properties / Efficience  : +")
         if properties.DummyPlayer(M):
             print("Properties / DummyPlayer : +")
         
-        return shapley_dict,decode_dict
+        return shapley_DictDecode,M
     
 if __name__ == '__main__':
     my_parser = argparse.ArgumentParser()
     my_parser.add_argument('--input_filepath', action='store', type=str, required=True)
     my_parser.add_argument('--output_filepath', action='store', type=str, required=True)
+    my_parser.add_argument('--output_filepathOrder', action='store', type=str, required=True)
     args = my_parser.parse_args()
     
     data = pd.read_csv(args.input_filepath)
     
     if Preprocessing(data).run():
         
-        shapley_dict,decode_dict = Shapley(data).run()
+        shp = Shapley(data)
+        
+        shapley_DictDecode, M = shp.run()
 
-        result = pd.DataFrame(decode_dict.items(),columns=[CHANNEL_NAME,SHAPLEY_VALUE])
+        shapley_calc = pd.DataFrame(shapley_DictDecode.items(),columns=[CHANNEL_NAME,SHAPLEY_VALUE])
 
-        result.to_csv(args.output_filepath)
+        shapley_calcOrder = shapleyOrderLib(data).Calc(M,shapley_DictDecode,shp.encryped_dict)
+        
+        shapley_calc.to_csv(args.output_filepath)
+        shapley_calcOrder.to_csv(args.output_filepathOrder)
+        
     
     
