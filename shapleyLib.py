@@ -117,4 +117,4 @@ if __name__ == '__main__':
     data = pd.read_csv(args.input_filepath)
     
     shapley = shapleyLib(data)
-    shapley_calc,shapley_calcOrder = shapley.run(args.output_folder,args.output_filename,args.output_filename_order)                                 
+    shapley.run(args.output_filename,args.output_filename_order)                                 
