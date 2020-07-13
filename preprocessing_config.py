@@ -14,17 +14,40 @@ TIMELINE = "timeline"
 #Detailed format file necessarycolumns
 
 
-
-
 CHANNEL_DELIMITER = "=>"
+TIMELINE_DELIMITER = "=>"
 
 CHANNEL_NAME  = "channel_name"
 SHAPLEY_VALUE = "shapley_value"
 POSITION      = "position"
 
-necessary_cols = [USER_PATH,COUNT]
-necessary_colTypes = {"user_path":np.object,"count":np.int}
+NECESSARY_COLS = [USER_PATH,COUNT]
+D_NECESSARY_COLS = [CLIENT_ID,USER_PATH,TIMELINE]
 
+
+NECESSARY_COLTYPES = {USER_PATH:np.object,COUNT:np.int}
+D_NECESSARY_COLTYPES = {CLIENT_ID:np.object,USER_PATH:np.object,TIMELINE:np.object}
+
+
+TIME_ZONE=3
+MILISEC_FORMAT=True
+THOUSAND=1000
+MIN_PER_HOUR = 60
+SEC_PER_MIN = 60
+
+DAY_PATTERN = r'^\d{1,10}[Dd]$'
+DAY_WINDOW = r'^(\d{1,10})[Dd]$'
+
+MONTH_PATTERN = r'^\d{1,10}MS$'
+MONTH_WINDOW = r'^(\d{1,10})[Mm]$'
+
+SEPARATOR=","
+
+NUMAFTERPOINT = 5
+ERROR = 0.01
+
+DATE_START = "date_start"
+DATE_FINISH = "date_finish"
 
 def ChainSplit(chain,channel_delimiter): return chain.split(channel_delimiter)
 
@@ -101,3 +124,12 @@ def FilterTheDict(dictObj,callback):
         if callback((key, value)):
             newDict[key] = value
     return newDict
+
+def epochCombinator(seq):
+    index = 0
+    store = []
+    while index < len(seq) - 1:
+        row = (seq[index],seq[index+1])
+        store.append(row)
+        index += 1
+    return store

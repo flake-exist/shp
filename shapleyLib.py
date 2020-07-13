@@ -1,13 +1,14 @@
 import argparse
 import pandas as pd
 import numpy as np
-from preprocessing import Preprocessing
+from preprocessing_agg import Preprocessing_agg
 from preprocessing_config import *
 from properties import Properties
 from shapleyOrderLib import shapleyOrderLib
+import os
 
 
-class Shapley:
+class shapleyLib:
     
     def __init__(self,data,path_col=USER_PATH,count_col=COUNT,channel_delimiter=CHANNEL_DELIMITER):
         
@@ -76,41 +77,44 @@ class Shapley:
         return shapley_DictEncode,shapley_DictDecode
     
     
-    def run(self):
+    def run(self,output_filename=None,output_filename_order=None):
+        
+        Preprocessing_agg(self.data).run()
         
         M = self.Vectorization()
+
         shapley_DictEncode,shapley_DictDecode = self.Calc(M)
-        
+
         properties = Properties(self.data,shapley_DictEncode)
-        
+
         if properties.Efficiency():
             print("Properties / Efficience  : +")
         if properties.DummyPlayer(M):
             print("Properties / DummyPlayer : +")
-        
-        return shapley_DictDecode,M
+
+        shapley_calc = pd.DataFrame(shapley_DictDecode.items(),columns=[CHANNEL_NAME,SHAPLEY_VALUE])
+
+        shapley_calcOrder = shapleyOrderLib(self.data).run(M,shapley_DictDecode,self.encryped_dict)
+
+        record_paths = [output_filename,output_filename_order]
+
+        returnORwrite = all([(val==None) for val in record_paths])
+
+        if returnORwrite == True:
+            return shapley_calc,shapley_calcOrder
+        else:
+            shapley_calc.to_csv(output_filename)
+            shapley_calcOrder.to_csv(output_filename_order)
+                
     
 if __name__ == '__main__':
     my_parser = argparse.ArgumentParser()
-    my_parser.add_argument('--input_filepath', action='store', type=str, required=True)
-    my_parser.add_argument('--output_filepath', action='store', type=str, required=True)
-    my_parser.add_argument('--output_filepathOrder', action='store', type=str, required=True)
+    my_parser.add_argument('--input_filepath', action='store', type=str, required=True)                                
+    my_parser.add_argument('--output_filename', action='store', type=str, required=True)
+    my_parser.add_argument('--output_filename_order', action='store', type=str, required=True)
     args = my_parser.parse_args()
     
     data = pd.read_csv(args.input_filepath)
     
-    if Preprocessing(data).run():
-        
-        shp = Shapley(data)
-        
-        shapley_DictDecode, M = shp.run()
-
-        shapley_calc = pd.DataFrame(shapley_DictDecode.items(),columns=[CHANNEL_NAME,SHAPLEY_VALUE])
-
-        shapley_calcOrder = shapleyOrderLib(data).Calc(M,shapley_DictDecode,shp.encryped_dict)
-        
-        shapley_calc.to_csv(args.output_filepath)
-        shapley_calcOrder.to_csv(args.output_filepathOrder)
-        
-    
-    
+    shapley = shapleyLib(data)
+    shapley_calc,shapley_calcOrder = shapley.run(args.output_folder,args.output_filename,args.output_filename_order)                                 

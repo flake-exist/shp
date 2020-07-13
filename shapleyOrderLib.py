@@ -70,7 +70,7 @@ class shapleyOrderLib:
         return np.array(store)
     
     
-    def Touchpoint(self,target_M,conversion_target,cardinality_target,frequency_target,positions,ID):
+    def Touchpoint(self,M_buffer,conversion_buffer,cardinality_buffer,frequency_buffer,positions,ID):
         '''
         Calculate each position value in `examineID` channel
         INPUT:[1] M_order - Ordered Matrix containing channel IDs in the same sequence as they are in string chains
@@ -81,11 +81,11 @@ class shapleyOrderLib:
 
         pos_dict = {}
         for position in positions:
-            pos_mask = (target_M[:,position] == ID)
+            mask = (M_buffer[:,position] == ID)
 
-            conversion_pos = conversion_target[pos_mask]
-            cardinality_pos = cardinality_target[pos_mask]
-            frequency_pos = frequency_target[pos_mask]
+            conversion_pos = conversion_buffer[mask]
+            cardinality_pos = cardinality_buffer[mask]
+            frequency_pos = frequency_buffer[mask]
 
             pos_dict[position] = (conversion_pos/(cardinality_pos*frequency_pos)).sum()            
             pos_dict = FilterTheDict(pos_dict,lambda elem: elem[1] > 0)
@@ -102,7 +102,7 @@ class shapleyOrderLib:
         return data
 
        
-    def Calc(self,M,shapley_DictDecode,encryped_dict,NumAfterPoint=5,error=0.01):
+    def run(self,M,shapley_DictDecode,encryped_dict,NumAfterPoint=NUMAFTERPOINT,error=ERROR):
         '''
         Calculate position value in each position in each channel.Return dict ,where keys - channels and its values
         are dicts with position values
@@ -122,21 +122,24 @@ class shapleyOrderLib:
         
         for target_channel in shapley_DictDecode.keys():
             ID = encryped_dict[target_channel]
-            IDmask = np.where(M[:,ID] == 1)[0] #mask , chains where channel(ID) is in the chain
+            mask = np.where(M[:,ID] == 1)[0] #mask , chains where channel(ID) is in the chain
             
             #masking
-            M_target,conversion_target = M_order[IDmask], self.data[self.count_col].values[IDmask]
-            cardinality_target,frequency_target = cardinality[IDmask], np.count_nonzero(M_target == ID,axis=1)
+            M_buffer,conversion_buffer = M_order[mask], self.data[self.count_col].values[mask]
+            cardinality_buffer,frequency_buffer = cardinality[mask], np.count_nonzero(M_buffer == ID,axis=1)
 
             
             '''Make checking'''
             
-            position_mask = np.where(M_target==ID)[1]
+            position_mask = np.where(M_buffer==ID)[1]
             positions = np.unique(position_mask)
             
-            shapley_DictOrder[target_channel] = self.Touchpoint(M_target,conversion_target,
-                                                              cardinality_target,frequency_target,
-                                                              positions,ID)
+            shapley_DictOrder[target_channel] = self.Touchpoint(M_buffer,
+                                                                conversion_buffer,
+                                                                cardinality_buffer,
+                                                                frequency_buffer,
+                                                                positions,
+                                                                ID)
             
             touchpointValSum = np.round(sum(shapley_DictOrder[target_channel].values()),NumAfterPoint)
             shapleyVal = np.round(shapley_DictDecode[target_channel],NumAfterPoint)
