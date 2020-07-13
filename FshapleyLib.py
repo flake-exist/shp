@@ -4,6 +4,7 @@ from preprocessing_detailed import Preprocessing_detailed
 import re
 from datetime import datetime
 from shapleyLib import shapleyLib
+import glob
 
 class FshapleyLib:
     
@@ -105,3 +106,24 @@ class FshapleyLib:
             
             shapley_calc.to_csv(output_filename)
             shapley_calcOrder.to_csv(output_filename_order)
+            
+    if __name__ == '__main__':
+        my_parser = argparse.ArgumentParser()
+        my_parser.add_argument('--date_start', action='store', type=str, required=True)
+        my_parser.add_argument('--date_finish', action='store', type=str, required=True)
+        my_parser.add_argument('--freq', action='store', type=str, required=True)
+        my_parser.add_argument('--input_filepath', action='store', type=str, required=True)                                
+        my_parser.add_argument('--output_filename', action='store', type=str, required=True)
+        my_parser.add_argument('--output_filename_order', action='store', type=str, required=True)
+        args = my_parser.parse_args()
+        
+        frames = [pd.read_csv(file,dtype=object) for file in glob.glob(args.input_filepath)]
+        data = pd.concat(frames,axis=0)
+
+        fshapley = FshapleyLib(data)
+        shapley_calc,shapley_calcOrder = fshapley.run(args.date_start,
+                                                      args.date_finish,
+                                                      args.freq,
+                                                      args.input_filepath,
+                                                      args.output_filename,
+                                                      args.output_filename_order)
