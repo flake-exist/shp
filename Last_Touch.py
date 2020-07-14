@@ -10,15 +10,16 @@ output_filename - если название нового файла нужно �
 
 import pandas as pd
 import numpy as np
+import csv
 
 
-def run_class(filepath,filename,output_filepath,output_filename):
-    LT=LastTouch(filepath,filename,output_filepath,output_filename)
+def run_class(filepath,filename,output_filepath,output_filename, sep):
+    LT=LastTouch(filepath,filename,output_filepath,output_filename, sep='=>')
     res=LT.get_result()
     return res
 
 class LastTouch:
-    def __init__(self,filepath='', filename='',output_filepath='', output_filename='', sep='>'):
+    def __init__(self,filepath='', filename='',output_filepath='', output_filename='', sep='=>'):
         self.filepath=filepath
         self.filename=filename
         self.output_filepath=output_filepath
@@ -36,7 +37,7 @@ class LastTouch:
         return pd.DataFrame(listrow[1:], columns=listrow[0])        
         
     def get_chan_list(self):
-        return list(set([y for i in list(self.chain_data.path) for y in i.split(self.sep)]))
+        return list(set([y for i in list(self.chain_data.user_path) for y in i.split(self.sep)]))
     
     def get_last_touch(self, unique_touch_list):
         """
@@ -44,8 +45,8 @@ class LastTouch:
         """
         conv_dict_2 = dict.fromkeys(unique_touch_list,0)
         for inx in self.chain_data.values:
-            path_list = inx[1].split('>')
-            conv_dict_2[path_list[-1]] += inx[2]
+            path_list = inx[0].split(self.sep)
+            conv_dict_2[path_list[-1]] += int(inx[1])
         return conv_dict_2
     
     def make_result_df(self, dict_lasttouch):
@@ -64,8 +65,8 @@ class LastTouch:
         ch_name=self.get_chan_list()
         lt_res=self.get_last_touch(ch_name)
         res=self.make_result_df(lt_res)
-        safe_result(res_data=res )
+        self.safe_result(res_data=res )
         return res
     
 if __name__ == '__main__':
-    run_class(filepath,filename,output_filepath,output_filename)
+    run_class(filepath,filename,output_filepath,output_filename,sep)
