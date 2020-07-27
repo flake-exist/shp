@@ -118,6 +118,7 @@ def run_reform_chain(filepath='', filename='',output_filepath='', output_filenam
     output_filename - если название нового файла изменять
     """
     chain_data=open_csv_with_clid(path=filepath+filename)
+    chain_data['count']=chain_data['count'].astype(int)
     if type_data=='agg':
         new_chain=get_new_chain_list_for_agg(goal_data=chain_data)
         result=safe_result_data(result_path=output_filepath, name_result_file=output_filename,data=chain_data, new_chain=new_chain,type_data='agg')
