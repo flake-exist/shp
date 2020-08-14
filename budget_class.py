@@ -106,10 +106,10 @@ class CalcBudget:
     def make_new_format(self,data=None):
         
         data.rename(columns={'click':'click_api','impressions':'impressions_api'}, inplace=True)
-        res_2=data[['profile', 'source', 'medium', 'adriver_campaign', 'click_api','impressions_api','budget_fact', 'shapley_value',
+        res_2=data[['profile', 'source', 'medium', 'campaign', 'click_api','impressions_api','budget_fact', 'shapley_value',
                'date_start', 'date_finish', 'NN', 'variable', 'type','total_sum', 'CPM']]
         
-        res_3=pd.pivot_table(res_2, values='shapley_value', index=['profile','source', 'medium', 'adriver_campaign',
+        res_3=pd.pivot_table(res_2, values='shapley_value', index=['profile','source', 'medium', 'campaign',
                                                                    'impressions_api','NN','click_api', 'budget_fact','variable',
                                                             'date_start', 'date_finish','total_sum'],
                       columns=['type'], aggfunc=np.sum)
@@ -128,11 +128,11 @@ class CalcBudget:
     def get_channel_number(self,data=None):
         #make help df
         dft=pd.DataFrame()
-        dft['channel_tuple']=list(set(list(zip(data.source, data.medium, data.adriver_campaign,data.profile))))
+        dft['channel_tuple']=list(set(list(zip(data.source, data.medium, data.campaign,data.profile))))
         dft['channel_number']=range(len(dft.channel_tuple))
 
         num_list=[]
-        for i in zip(data.source, data.medium, data.adriver_campaign,data.profile):
+        for i in zip(data.source, data.medium, data.campaign,data.profile):
             num_list.append(dft[dft.channel_tuple==i].channel_number.values[0])
 
         return num_list
