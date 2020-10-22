@@ -142,7 +142,7 @@ class CalcBudget:
         big_dict={}
         for num in data.channel_number:
             big_dict[num]=({i:j for i,j in zip(data[data.channel_number==num].NN,
-                                              data[data.channel_number==num].total_shapley_value)},
+                                              data[data.channel_number==num].total_shapley_value)  if j!=0},
                            data[data.channel_number==num].budget_fact.values[0] )
         return big_dict
 
